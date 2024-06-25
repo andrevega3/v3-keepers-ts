@@ -64,7 +64,7 @@ type RunLiquidatorParams = {
   liquidatorMarginAccount: Address;
 };
 
-async function runLiquidator({
+export async function runLiquidator({
   sdk,
   connection,
   interval,
