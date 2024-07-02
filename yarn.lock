@@ -150,7 +150,7 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@parcl-oss/v3-sdk@0.0.0":
+"@parcl-oss/v3-sdk@file:../v3-sdk-ts":
   version "0.0.0"
   resolved "file:../v3-sdk-ts"
   dependencies:

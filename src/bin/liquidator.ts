@@ -26,6 +26,8 @@ import bs58 from "bs58";
 import * as dotenv from "dotenv";
 dotenv.config();
 
+dotenv.config({ path: '.env.example.liquidator' });
+
 (async function main() {
   console.log("Starting liquidator");
   if (process.env.RPC_URL === undefined) {
@@ -52,6 +54,7 @@ dotenv.config();
     exchangeAddress,
     liquidatorSigner,
     liquidatorMarginAccount,
+    commitment,
   });
 })();
 
@@ -62,6 +65,7 @@ type RunLiquidatorParams = {
   exchangeAddress: Address;
   liquidatorSigner: Keypair;
   liquidatorMarginAccount: Address;
+  commitment: Commitment | undefined;
 };
 
 async function runLiquidator({
@@ -71,6 +75,7 @@ async function runLiquidator({
   exchangeAddress,
   liquidatorSigner,
   liquidatorMarginAccount,
+  commitment,
 }: RunLiquidatorParams): Promise<void> {
   let firstRun = true;
   // eslint-disable-next-line no-constant-condition
@@ -142,7 +147,8 @@ async function runLiquidator({
           },
           markets,
           [liquidatorSigner],
-          liquidatorSigner.publicKey
+          liquidatorSigner.publicKey,
+          commitment
         );
         console.log("Signature: ", signature);
       }
@@ -201,14 +207,22 @@ async function liquidate(
   markets: MarketMap,
   signers: Signer[],
   feePayer: Address,
-  params?: LiquidateParams
+  commitment?: Commitment | undefined,
+  params?: LiquidateParams,
 ): Promise<string> {
   const [marketAddresses, priceFeedAddresses] = getMarketsAndPriceFeeds(marginAccount, markets);
-  const { blockhash: recentBlockhash } = await connection.getLatestBlockhash();
-  const tx = sdk
+  const tx = await sdk
     .transactionBuilder()
+    .setComputeUnitBudget(400_000) // Both compute unit and price are optimized later
+    .setComputeUnitPrice(1)
     .liquidate(accounts, marketAddresses, priceFeedAddresses, params)
     .feePayer(feePayer)
-    .buildSigned(signers, recentBlockhash);
-  return await sendAndConfirmTransaction(connection, tx, signers);
+    .buildOptimizedSigned(connection, signers, "Low", commitment);
+  return await sendAndConfirmTransaction(connection, tx, signers,
+    {
+      commitment: commitment,
+      preflightCommitment: commitment,
+      skipPreflight: false
+    }
+  );
 }
